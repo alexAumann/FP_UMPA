@@ -10,19 +10,23 @@ from numpy import fft as fft
 
 def FP_UMPA_Tensor_Splines(I_sample, I_ref, kx = 3, ky = 3, Nw = 0, N_blur = 0):
     """
-    Compare speckle images with sample (Isample) and w/o sample
-    (Iref) using a given window.
-    max_shift can be set to the number of pixels for an "acceptable"
-    speckle displacement.
+    Local analysis windows are created for multimodal signal reconstruction based on the  
+    proposed model anisotropic diffusion models.
 
-    :param Isample: A list  of measurements, with the sample aligned but speckles shifted
-    :param Iref: A list of empty speckle measurements with the same displacement as Isample.
-    :param Nw: 2*Nw + 1 is the width of the window.
-    :param step: perform the analysis on every other _step_ pixels in both directions (default 1)
-    :param max_shift: Do not allow shifts larger than this number of pixels (default 4)
-    :param df: Compute dark field (default True)
+    :param I_sample: A list of sample images
 
-    Return T, dx, dy, df, f
+    :param I_ref: A list of reference images
+
+    :param kx: An integer that specifies the degree of polynomial spline in the y direction
+
+    :param ky: An integer that specifies the degree of polynomial spline in the y direction
+
+    :param Nw: An integer that specifies that a (2*Nw + 1)*(2*Nw + 1) to be used
+
+    :param N_blur: An integer which applies an (2*N_blur + 1)*(2*N_blur + 1) blurring kernel on the retrieved
+    A parameters. The blurring kernel is defined by a 2D hamming window
+
+    :return: A dictionary of retrieved signals and parameters in the tensorial representation of diffusion
     """
 
     kx = kx
@@ -188,19 +192,23 @@ def FP_UMPA_Tensor_Splines(I_sample, I_ref, kx = 3, ky = 3, Nw = 0, N_blur = 0):
 
 def FP_UMPA_Scalar_Splines(I_sample, I_ref, kx = 3, ky = 3, Nw = 0, N_blur = 0):
     """
-    Compare speckle images with sample (Isample) and w/o sample
-    (Iref) using a given window.
-    max_shift can be set to the number of pixels for an "acceptable"
-    speckle displacement.
+    Local analysis windows are created for multimodal signal reconstruction based on the  
+    proposed model isotropic diffusion models.
 
-    :param Isample: A list  of measurements, with the sample aligned but speckles shifted
-    :param Iref: A list of empty speckle measurements with the same displacement as Isample.
-    :param Nw: 2*Nw + 1 is the width of the window.
-    :param step: perform the analysis on every other _step_ pixels in both directions (default 1)
-    :param max_shift: Do not allow shifts larger than this number of pixels (default 4)
-    :param df: Compute dark field (default True)
+    :param I_sample: A list of sample images
 
-    Return T, dx, dy, df, f
+    :param I_ref: A list of reference images
+
+    :param kx: An integer that specifies the degree of polynomial spline in the y direction
+
+    :param ky: An integer that specifies the degree of polynomial spline in the y direction
+
+    :param Nw: An integer that specifies that a (2*Nw + 1)*(2*Nw + 1) to be used
+
+    :param N_blur: An integer which applies an (2*N_blur + 1)*(2*N_blur + 1) blurring kernel on the retrieved
+    A parameters. The blurring kernel is defined by a 2D hamming window
+
+    :return: A dictionary of retrieved signals and parameters in the scalar representation of diffusion
     """
 
     kx = kx
