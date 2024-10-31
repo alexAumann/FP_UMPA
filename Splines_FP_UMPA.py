@@ -186,6 +186,152 @@ def FP_UMPA_Tensor_Splines(I_sample, I_ref, kx = 3, ky = 3, Nw = 0, N_blur = 0):
 
 
 
+def FP_UMPA_Scalar_Splines(I_sample, I_ref, kx = 3, ky = 3, Nw = 0, N_blur = 0):
+    """
+    Compare speckle images with sample (Isample) and w/o sample
+    (Iref) using a given window.
+    max_shift can be set to the number of pixels for an "acceptable"
+    speckle displacement.
+
+    :param Isample: A list  of measurements, with the sample aligned but speckles shifted
+    :param Iref: A list of empty speckle measurements with the same displacement as Isample.
+    :param Nw: 2*Nw + 1 is the width of the window.
+    :param step: perform the analysis on every other _step_ pixels in both directions (default 1)
+    :param max_shift: Do not allow shifts larger than this number of pixels (default 4)
+    :param df: Compute dark field (default True)
+
+    Return T, dx, dy, df, f
+    """
+
+    kx = kx
+    ky = ky
+    Ish = I_sample[0].shape
+
+    # Create the window
+    w = np.multiply.outer(np.hamming(2*Nw+1), np.hamming(2*Nw+1))
+    w /= w.sum()
+
+    NR = len(I_sample)
+    
+    # Get the derivative of the reference images
+
+    Isample = [0]*NR
+    Iref = [0]*NR
+    DxIref = [0]*NR
+    DyIref = [0]*NR
+    Dx2Dy2Iref = [0]*NR
+
+
+    x = np.arange(0, Ish[0])
+    y = np.arange(0, Ish[1])
+    
+    i = np.arange(1, Ish[0]-1, 1/(2*Nw + 1))
+    j = np.arange(1, Ish[1]-1, 1/(2*Nw + 1))
+
+
+
+    for index in range(NR):
+        temp = interpolate.RectBivariateSpline(x, y, I_ref[index], kx = kx, ky = ky, s = 0)
+
+        Isample[index] = (interpolate.RectBivariateSpline(x, y, I_sample[index], kx = kx, ky = ky, s = 0))(i, j)
+        Iref[index] = temp(i, j)
+        DxIref[index]   = -(temp.partial_derivative(0, 1))(i, j)
+        DyIref[index]   = (temp.partial_derivative(1, 0))(i, j)
+        Dx2Dy2Iref[index]  = (temp.partial_derivative(0, 2))(i, j)
+        Dx2Dy2Iref[index]  += (temp.partial_derivative(2, 0))(i, j)
+
+
+
+    # Define entries of our coefficient matrix and bin our data
+    L1  = cc(sum(I**2 for I in Iref), w)[::2*Nw+1, ::2*Nw+1]
+    L2  = cc(sum(Iref[i]*DxIref[i] for i in range(NR)), w)[::2*Nw+1, ::2*Nw+1]
+    L3  = cc(sum(Iref[i]*DyIref[i] for i in range(NR)), w)[::2*Nw+1, ::2*Nw+1]
+    L4  = cc(sum(Iref[i]*Dx2Dy2Iref[i] for i in range(NR)), w)[::2*Nw+1, ::2*Nw+1]
+    L5  = cc(sum(I**2 for I in DxIref), w)[::2*Nw+1, ::2*Nw+1]
+    L6  = cc(sum(DxIref[i]*DyIref[i] for i in range(NR)), w)[::2*Nw+1, ::2*Nw+1]
+    L7  = cc(sum(DxIref[i]*Dx2Dy2Iref[i] for i in range(NR)), w)[::2*Nw+1, ::2*Nw+1]
+    L8  = cc(sum(I**2 for I in DyIref), w)[::2*Nw+1, ::2*Nw+1]
+    L9  = cc(sum(DyIref[i]*Dx2Dy2Iref[i] for i in range(NR)), w)[::2*Nw+1, ::2*Nw+1]
+    L10 = cc(sum(I**2 for I in Dx2Dy2Iref), w)[::2*Nw+1, ::2*Nw+1]
+
+
+    V1 = cc(sum(Iref[i]*Isample[i] for i in range(NR)), w)[::2*Nw+1, ::2*Nw+1]
+    V2 = cc(sum(DxIref[i]*Isample[i] for i in range(NR)), w)[::2*Nw+1, ::2*Nw+1]
+    V3 = cc(sum(DyIref[i]*Isample[i] for i in range(NR)), w)[::2*Nw+1, ::2*Nw+1]
+    V4 = cc(sum(Dx2Dy2Iref[i]*Isample[i] for i in range(NR)), w)[::2*Nw+1, ::2*Nw+1]
+
+
+
+
+
+    # Create parameter images
+    A00 = np.zeros((Ish[0] - 2, Ish[1] - 2))
+    A10 = np.zeros((Ish[0] - 2, Ish[1] - 2))
+    A01 = np.zeros((Ish[0] - 2, Ish[1] - 2))
+    A20 = np.zeros((Ish[0] - 2, Ish[1] - 2))
+
+    
+    
+    # Loop through all positions
+    for i in range(Ish[0] - 2):
+        for j in range(Ish[1] - 2):
+            # Define local values of L1, L2, ...
+            M = np.matrix([[L1[i, j], L2[i, j],  L3[i, j],  L4[i, j]],
+                           [L2[i, j], L5[i, j], L6[i, j], L7[i, j]],
+                           [L3[i, j], L6[i, j], L8[i, j], L9[i, j]],
+                           [L4[i, j], L7[i, j], L9[i, j], L10[i, j]]
+                          ])
+
+            V = np.matrix([
+                          [V1[i, j]],
+                          [V2[i, j]],
+                          [V3[i, j]],
+                          [V4[i, j]]
+                            ])
+
+            A_param = (M.I)*V
+
+            # store everything
+            A00[i, j] = A_param[0, 0]
+            A10[i, j] = A_param[1, 0]
+            A01[i, j] = A_param[2, 0]
+            A20[i, j] = A_param[3, 0]
+
+    Dx = (1 / 2) * np.array([[-1, 0, 1]])
+
+    Dy = (1 / 2) * np.array([[1],
+                             [0],
+                             [-1]])
+
+    Dx2 = sig.convolve2d(Dx, Dx)
+
+    DxDy = sig.convolve2d(Dx, Dy)
+
+    Dy2 = sig.convolve2d(Dy, Dy)
+
+    # THIS IS FOR BLURRING
+    w_blur = np.multiply.outer(np.hamming(2*N_blur+1), np.hamming(2*N_blur+1))
+    w_blur /= w_blur.sum()
+
+    A00 = sig.convolve2d(A00, w_blur,  mode='same')
+    A10 = sig.convolve2d(A10, w_blur,  mode='same')
+    A01 = sig.convolve2d(A01, w_blur,  mode='same')
+    A20 = sig.convolve2d(A20, w_blur,  mode='same')
+
+    S00 = A00 - sig.convolve2d(A10, Dx,  mode='same') - sig.convolve2d(A01, Dy,  mode='same') + sig.convolve2d(A20, Dx2,  mode='same') + sig.convolve2d(A20, Dy2,  mode='same')
+
+    S10 = (-A10 + 2 * sig.convolve2d(A20, Dx,  mode='same')) / S00
+
+    S01 = (-A01 + 2 * sig.convolve2d(A20, Dy,  mode='same')) / S00
+
+    S20 = A20 / S00
+
+
+    return {'S00': S00, 'S10': S10, 'S01': S01, 'S20': S20,
+           'A00': A00, 'A10': A10, 'A01': A01, 'A20': A20}
+    
+
+
 def cc(A, B, mode='same'):
     """
     A fast cross-correlation based on scipy.signal.fftconvolve.
